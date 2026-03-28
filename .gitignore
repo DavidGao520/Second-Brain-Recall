@@ -27,3 +27,20 @@ dist-ssr
 
 # TRAE Solo IDE — local scratch (not part of canonical docs)
 .trae/
+
+# Secrets — never commit env files
+.env
+.env*
+!.env.example
+
+# Vercel local project link
+.vercel/
+
+# Test coverage
+coverage/
+
+# SSL certificates
+*.pem
+
+# TypeScript build cache
+*.tsbuildinfo

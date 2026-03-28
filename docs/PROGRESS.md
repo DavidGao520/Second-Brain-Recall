@@ -72,13 +72,71 @@
 
 ## Suggested next tasks (priority)
 
-1. **MiniMax** — wire API + agent `processRecall`; env + Vercel vars.  
-2. **JSON extraction** — Zod/schema for summary + `action_items` + `sources` on ingest.  
-3. **DB** — migration for chunks or extended columns (`source_type`, citations).  
-4. **Dashboard** — multiline paste or file → same pipeline.  
-5. **Demo fixtures** — optional `demo/` JSON + “Load sample” (clearly labeled).  
-6. **Agent → API** (optional) — service token or user JWT to persist iMessage recalls.  
+1. **MiniMax** — wire API + agent `processRecall`; env + Vercel vars.
+2. **JSON extraction** — Zod/schema for summary + `action_items` + `sources` on ingest.
+3. **DB** — migration for chunks or extended columns (`source_type`, citations).
+4. **Dashboard** — multiline paste or file → same pipeline.
+5. **Demo fixtures** — optional `demo/` JSON + “Load sample” (clearly labeled).
+6. **Agent → API** (optional) — service token or user JWT to persist iMessage recalls.
 7. **`chat.db` script** — stretch only; document macOS + permissions here if built.
+
+---
+
+## Team Split (Hackathon)
+
+### Person A — Data Pipeline
+- [ ] Task 1: DB migration — add structured columns (`supabase/migrations/0001_enrich_knowledge_items.sql`)
+- [ ] Task 2: MiniMax wiring — replace OpenAI, return structured JSON (`api/services/llm.ts`)
+- [ ] Task 3: Zod extraction schema + parse helper (`api/services/extract.ts`)
+- [ ] Task 4: Update ingestion route to store all new fields (`api/routes/message.ts`)
+- [ ] Task 5: Demo fixtures for pitch (`demo/sample_data.json` + `demo/load-fixtures.ts`)
+
+### Person B — Dashboard UX
+- [ ] Bento box category filter tabs + item cards with category/location badges
+- [ ] Recharts “Digital Diet” pie/bar chart (category breakdown)
+- [ ] Multiline paste textarea + file upload UI (maps to `source_type`)
+- [ ] Mirror Memory chatbot widget (stretch)
+
+> **Coordination:** Person A does Task 1 (DB migration) first — Person B is unblocked for card UI once schema is live. See API Contract below for the shared data shapes to code against.
+
+---
+
+## API Contract
+
+Both teammates code against these TypeScript shapes. Person B can use them as types in the frontend immediately.
+
+### `GET /api/knowledge_items/:userId` — item shape (after Task 1+4)
+```typescript
+interface KnowledgeItem {
+  id: string;
+  user_id: string;
+  original_content_url: string;     // existing — raw input text/URL
+  summary: string;                  // existing — 2-sentence summary
+  category: 'Food' | 'Events' | 'Sports' | 'Ideas' | 'Medical' | null; // NEW (null = still processing)
+  location_city: string | null;     // NEW — e.g. “Los Angeles”
+  location_name: string | null;     // NEW — e.g. “Philz Coffee”
+  action_items: { task: string; owner: string }[]; // NEW — always array, never null
+  source_context: string | null;    // NEW — original snippet
+  source_type: 'text' | 'url' | 'chat_export' | 'image'; // NEW — default 'text'
+  notion_page_id: string | null;    // existing
+  created_at: string;               // existing
+}
+```
+
+### `POST /api/message` — request body (after Task 4)
+```typescript
+interface MessageRequest {
+  userId: string;    // required
+  type: string;      // required (keep for now)
+  content: string;   // required — text, URL, or multiline chat dump
+  source_type?: 'text' | 'url' | 'chat_export' | 'image'; // optional, defaults to 'text'
+}
+```
+
+### Frontend notes for Person B
+- `category: null` = item still being processed by LLM — show a pending/loading badge
+- `action_items` is always an array — safe to `.map()` without null check
+- Render `location_city` / `location_name` conditionally (both can be null)
 
 ---
 
