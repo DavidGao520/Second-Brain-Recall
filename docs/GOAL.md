@@ -104,6 +104,9 @@ second-brain-recall/
 ├── docs/
 │   ├── GOAL.md          ← this file (North Star)
 │   └── PROGRESS.md      ← living build state — update after milestones
+├── data/                ← samples, `raw_posts/` (CN paste .txt), parser output in `output/` (gitignored); `data/local/` = private exports (see data/README.md)
+├── demo/                ← `sample_data.json` + `demo:load` script
+├── scripts/             ← bulk ingest, etc.; parsers for downloaded files → `scripts/ingest/`
 ├── web/                 ← frontend (Vite root); build → ../dist
 ├── api/                 ← Express; server.ts (local), index.ts (Vercel)
 ├── packages/

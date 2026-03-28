@@ -11,9 +11,9 @@
 
 ## Alignment
 
-**North Star:** `docs/GOAL.md` — **Deep-Context Social Copilot** (catch-up + grounded recall + export).
+**North Star:** `docs/GOAL.md` — **Autonomous Background Brain** (omni-channel ingest → Bento dashboard → optional pings + Mirror Memory).
 
-**Current code path:** Recall-style **web dashboard** + **Express API** + **Photon iMessage agent**. Close gaps to **GOAL** via MiniMax, structured extraction, citations, and ingestion UX.
+**Current code path:** **`/connect`** chooses **simulated** iMessage sample vs real **paste / .txt export** (WeChat/WhatsApp/etc.) → same `POST /api/message` pipeline; dashboard lists items. Photon agent still separate from this ingest path.
 
 ---
 
@@ -22,9 +22,9 @@
 ### Web — `web/`
 
 - [x] Vite + React + TypeScript + Tailwind (`vite.config.ts` sets `root` to `web/`, build output to repo `dist/`)
-- [x] Routes: Landing, Login, Dashboard
+- [x] Routes: Landing, Login, **`/connect`** (source picker + multiline ingest), Dashboard
 - [x] Supabase Auth (client)
-- [x] Dashboard: POST body `content` (URL/text) → `/api/message`; list via `GET /api/knowledge_items/:userId`
+- [x] Ingest: `POST /api/message` with `content` + `source_type` (`text` | `url` | `chat_export` | `image`); list via `GET /api/knowledge_items/:userId`
 - [x] Settings (Radix): Notion token + database ID on `users`
 
 ### API — `api/`
@@ -58,14 +58,16 @@
 
 | Gap | Notes |
 |-----|--------|
-| **MiniMax** | Event expects MiniMax in product; summarize path is still **OpenAI** in `api/services/llm.ts`. |
-| **Structured JSON** | No enforced schema for actions/sources on ingest. |
-| **Citations / RAG** | No chunk store or grounded Q&A. |
-| **Ingestion UX** | No first-class paste/upload of long chats (only string `content` on dashboard). |
+| **MiniMax** | Wired in `api/services/llm.ts` (verify env in deploy). |
+| **Structured JSON** | Zod in `api/services/extract.ts` on ingest. |
+| **Citations / RAG** | No chunk store or grounded Q&A yet. |
+| **Vision** | Screenshot card on `/connect` is **text/caption** only until MiniMax Vision is wired. |
+| **Ingestion UX** | **`/connect`** covers simulated iMessage + exports + paste; not auto-reading WeChat backup folders. |
+| **小红书 / TikTok 收藏** | **No** reliable third-party favorites API; UX = paste link + on-screen text; optional official **personal data** export (slow). Cards: `source_type` **`rednote`** \| **`tiktok`**. |
 | **`chat.db`** | Not implemented. |
-| **Agent ↔ API** | Agent is a **separate process**; no authenticated HTTP from agent to `api/` yet. |
+| **Agent ↔ API** | Optional: `SECOND_BRAIN_INGEST_ON_RECALL` POSTs transcript to `POST /api/message` (see `packages/imessage-agent/.env.example`). |
 | **Auth API** | `/api/auth/*` unused; session is Supabase client-side. |
-| **Secrets** | Move Supabase URL/keys to **env** (`VITE_*` + server service role); rotate if ever committed. |
+| **Secrets** | Supabase via **env** (`VITE_*` + `SUPABASE_SERVICE_KEY`); rotate if ever committed. |
 | **Duplicate `.env`** | Prefer **one** root `.env` for `npm run dev` (nodemon cwd = repo root). Avoid relying on `api/.env` unless nodemon is changed to load it. |
 
 ---
@@ -94,7 +96,7 @@
 ### Person B — Dashboard UX
 - [ ] Bento box category filter tabs + item cards with category/location badges
 - [ ] Recharts “Digital Diet” pie/bar chart (category breakdown)
-- [ ] Multiline paste textarea + file upload UI (maps to `source_type`)
+- [x] Multiline paste + `.txt` load + source cards on **`/connect`** (maps to `source_type`)
 - [ ] Mirror Memory chatbot widget (stretch)
 
 > **Coordination:** Person A does Task 1 (DB migration) first — Person B is unblocked for card UI once schema is live. See API Contract below for the shared data shapes to code against.
@@ -117,7 +119,7 @@ interface KnowledgeItem {
   location_name: string | null;     // NEW — e.g. “Philz Coffee”
   action_items: { task: string; owner: string }[]; // NEW — always array, never null
   source_context: string | null;    // NEW — original snippet
-  source_type: 'text' | 'url' | 'chat_export' | 'image'; // NEW — default 'text'
+  source_type: 'text' | 'url' | 'chat_export' | 'image' | 'rednote' | 'tiktok'; // default 'text'
   notion_page_id: string | null;    // existing
   created_at: string;               // existing
 }
@@ -129,7 +131,7 @@ interface MessageRequest {
   userId: string;    // required
   type: string;      // required (keep for now)
   content: string;   // required — text, URL, or multiline chat dump
-  source_type?: 'text' | 'url' | 'chat_export' | 'image'; // optional, defaults to 'text'
+  source_type?: 'text' | 'url' | 'chat_export' | 'image' | 'rednote' | 'tiktok'; // optional
 }
 ```
 
@@ -149,7 +151,16 @@ interface MessageRequest {
 
 **Vercel:** set the same keys (and future MiniMax vars) in the project dashboard.
 
-**Agent** — `packages/imessage-agent/.env` from that folder’s `.env.example` (`RECALL_TRIGGER`, `MAX_MESSAGES`, `MY_PHONE`, future LLM keys).
+**Agent** — `packages/imessage-agent/.env`: `RECALL_TRIGGER`, `MAX_MESSAGES`, optional **`SECOND_BRAIN_API_URL`**, **`SECOND_BRAIN_USER_ID`**, **`SECOND_BRAIN_INGEST_ON_RECALL`**.
+
+**Bulk local ingest (WeChat backup dirs, exported `.txt`, notes)** — not model training; each file chunk hits **MiniMax** via `POST /api/message`. Start API first, then:
+
+```bash
+USER_ID=<auth.users uuid> npm run ingest:local -- "/path/to/wechat/.../files" ~/exports
+# dry run: add --dry-run
+```
+
+**Where to put files:** see **`data/README.md`** (fixtures vs `data/samples/` vs gitignored **`data/local/`**).
 
 ---
 
@@ -160,12 +171,16 @@ npm install
 cp .env.example .env          # API keys at repo root for local dev
 npm run dev                   # Vite (web/) + Express :3001
 
-# macOS only
+# Seed DB from folders of .txt / .md / .log (API must be up)
+USER_ID=<uuid> npm run ingest:local -- --dry-run "/path/to/folder"
+USER_ID=<uuid> npm run ingest:local -- "/path/to/wechat/Backup/.../files"
+
+# macOS only — Photon agent; copy .env and set SECOND_BRAIN_* to match local API + USER_ID
 cp packages/imessage-agent/.env.example packages/imessage-agent/.env
 npm run agent:start
 ```
 
-Other useful scripts: `npm run build`, `npm run check`, `npm run lint`, `npm run agent:dev`, `npm run agent:test:imessage`.
+Other useful scripts: `npm run build`, `npm run check`, `npm run lint`, `npm run agent:dev`, `npm run agent:test:imessage`, `npm run demo:load`.
 
 ---
 
@@ -182,5 +197,12 @@ Other useful scripts: `npm run build`, `npm run check`, `npm run lint`, `npm run
 
 ## Changelog
 
+- **2026-03-28** — **`data/README.md` §2b**: optional [WeFlow](https://github.com/hicccc77/WeFlow) export → **`ingest:local`**; notes on Backup folder vs live WeChat 4.0 + DB connection.
+- **2026-03-28** — **`npm run ingest:seed`**: `--mode db` (direct `knowledge_items` insert) or `--mode api` (MiniMax via `POST /api/message`); reads **`data/output/seed_posts.json`**.
+- **2026-03-28** — **`scripts/ingest/parse_cn_us_posts.py`**: `data/raw_posts/*.txt` → **`data/output/seed_posts.json`** (rule-based 标题/城市/店名/标签/category/vibes/signals); **`npm run ingest:parse-cn`**.
+- **2026-03-28** — **`data/`** layout + **`data/README.md`** (samples, fixtures, local-only exports); **`scripts/ingest/`** placeholder for download parsers.
+- **2026-03-28** — **`/connect`**: 小红书 / TikTok 收藏夹 cards (`rednote` / `tiktok` source types); honest paste-first story vs favorites API.
+- **2026-03-28** — **`scripts/bulk-ingest-local.ts`** + **`npm run ingest:local`**; Photon agent optional **`SECOND_BRAIN_*`** forward to `POST /api/message`.
+- **2026-03-28** — Added **`/connect`** ingestion UX (simulated iMessage + export/paste paths, honest demo copy); login lands on Connect; **PROGRESS** aligned with **GOAL** Feature 1.
 - **2026-03-28** — Refreshed **GOAL** + **PROGRESS**: deploy/env sections, gap table, workspace naming, doc policy.  
 - **2026-03-28** — Docs trimmed to two files; monorepo `web/`, `api/`, `packages/imessage-agent/`.

@@ -17,11 +17,17 @@
     "agent:test:imessage": "npm run test:imessage -w imessage-agent",
     "agent:test:send": "npm run test:send -w imessage-agent",
     "agent:test:watch": "npm run test:watch -w imessage-agent",
-    "demo:load": "tsx demo/load-fixtures.ts"
+    "demo:load": "tsx demo/load-fixtures.ts",
+    "dev:ensure-user": "tsx scripts/ensure-dev-auth-user.ts",
+    "dev:smoke-api": "tsx scripts/smoke-api.ts",
+    "ingest:local": "tsx scripts/bulk-ingest-local.ts",
+    "ingest:parse-cn": "python3 scripts/ingest/parse_cn_us_posts.py",
+    "ingest:seed": "tsx scripts/ingest/seed-posts.ts"
   },
   "dependencies": {
     "@notionhq/client": "^5.14.0",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@supabase/supabase-js": "^2.99.3",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/auth-ui-shared": "^0.1.8",
     "clsx": "^2.1.1",

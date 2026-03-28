@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import Settings from '@/components/Settings';
@@ -16,8 +16,6 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newItemUrl, setNewItemUrl] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchKnowledgeItems = async () => {
     if (!user) return;
@@ -30,6 +28,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     const getSession = async () => {
+      const bypass =
+        import.meta.env.VITE_DEV_BYPASS_AUTH === 'true' &&
+        import.meta.env.VITE_DEV_USER_ID;
+      if (bypass) {
+        setUser({
+          id: import.meta.env.VITE_DEV_USER_ID,
+          email: 'dev-bypass@local',
+        } as User);
+        return;
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/login');
@@ -51,23 +59,6 @@ export default function Dashboard() {
     navigate('/login');
   };
 
-  const handleSubmitItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newItemUrl || !user) return;
-
-    setIsSubmitting(true);
-    await fetch('/api/message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, type: 'url', content: newItemUrl }),
-    });
-
-    setNewItemUrl('');
-    setIsSubmitting(false);
-    // Refresh the list after a short delay to allow the backend to process
-    setTimeout(fetchKnowledgeItems, 2000);
-  };
-
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-3xl">
@@ -86,25 +77,21 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmitItem} className="mb-8">
-          <div className="flex items-center space-x-2">
-            <input
-              type="url"
-              value={newItemUrl}
-              onChange={(e) => setNewItemUrl(e.target.value)}
-              placeholder="Paste a URL to summarize and save"
-              className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              required
-            />
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : 'Save'}
-            </button>
+        <div className="mb-8 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Add memories</p>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Choose a source: simulated iMessage, WeChat/WhatsApp export, or paste any thread — same AI pipeline as{' '}
+              <code className="text-[11px] bg-white/80 px-1 rounded">GOAL.md</code> Feature&nbsp;1.
+            </p>
           </div>
-        </form>
+          <Link
+            to="/connect"
+            className="inline-flex justify-center px-4 py-2 text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 shrink-0"
+          >
+            Open Connect
+          </Link>
+        </div>
 
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-4 py-5 sm:px-6">
@@ -125,9 +112,16 @@ export default function Dashboard() {
                 {knowledgeItems.map((item) => (
                   <li key={item.id} className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
-                      <a href={item.original_content_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 truncate hover:text-indigo-500">
-                        {item.original_content_url}
-                      </a>
+                      <span className="text-sm font-medium text-indigo-600 truncate block" title={item.original_content_url}>
+                        {item.original_content_url.startsWith('http') ? (
+                          <a href={item.original_content_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            {item.original_content_url.slice(0, 80)}
+                            {item.original_content_url.length > 80 ? '…' : ''}
+                          </a>
+                        ) : (
+                          <span className="text-gray-800">{item.original_content_url.slice(0, 120)}{item.original_content_url.length > 120 ? '…' : ''}</span>
+                        )}
+                      </span>
                       <p className="text-xs text-gray-500">{new Date(item.created_at).toLocaleDateString()}</p>
                     </div>
                     <p className="mt-2 text-sm text-gray-600">

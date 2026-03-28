@@ -11,6 +11,8 @@ const repoRoot = path.resolve(__dirname, '..')
 // https://vite.dev/config/
 export default defineConfig({
   root: __dirname,
+  /** Load `.env` from monorepo root (same file as Express `dotenv`). */
+  envDir: repoRoot,
   build: {
     outDir: path.join(repoRoot, 'dist'),
     emptyOutDir: true,
