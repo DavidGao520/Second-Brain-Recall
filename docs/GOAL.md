@@ -1,111 +1,103 @@
 # GOAL.md — North Star (Architectural Blueprint)
 
-**Audience:** Human team + AI coding agents (TRAE, Cursor, etc.)
+**Audience:** Human team + AI coding agents (TRAE, Cursor, Claude).
+
+**Rule of Engagement:** This is the immutable product and architecture contract. AI agents must read this file before writing any code to understand the system context, the MVC boundaries, and the data schema.
 
 **Canonical docs in this repo:** only **`GOAL.md`** (this file) and **`PROGRESS.md`**. Do not add parallel architecture files without folding them here or into **PROGRESS**.
 
 ---
 
-## Rules of engagement
+## 1. The Vision & Pitch
 
-- **GOAL.md** is the **immutable product + architecture contract** unless a **human** explicitly changes it.
-- **Before writing code:** read **`docs/PROGRESS.md`** (live state, blockers, next task).
-- **After a merge-worthy milestone:** update **`docs/PROGRESS.md`** (done / in progress / blocked).
-- Prefer **small, shippable steps** over features that depend on **non-existent consumer APIs** (bulk chat history OAuth, etc.).
+**Tagline:** "又解决选择困难症，又解决记忆困难症" (Solving decision paralysis and memory loss, simultaneously).
 
----
+**The Wedge (The Problem):** We consume too much unstructured information. We drop Rednote (Xiaohongshu) cafe recommendations, TikTok event reels, and random thoughts into massive group chats. Months later, when it's time to actually plan a trip or execute a project, that context is lost.
 
-## 1. Core directives for AI agents
-
-**Role:** Expert full-stack + AI systems architect; ship a **hackathon-grade**, **honest** product.
-
-**Architecture**
-
-- **Skinny controllers** — orchestration and vendor calls live in **`api/services/`** (and the same idea in **`packages/imessage-agent/`** for messaging-side logic).
-- **Primary runtime LLM (event rules):** **MiniMax** — prefer **strict JSON** for extraction (summary, `action_items[]`, `sources[]`) so storage and UI stay predictable. *(See **PROGRESS.md** for what is wired today.)*
-
-**Hackathon narrative (align pitch + code)**
-
-- **TRAE** as primary IDE (`@Chat` / `@Builder` where applicable).
-- **At least one MiniMax API** in the shipped product.
-- **Photon / iMessage** = optional **bonus track** — macOS agent in **`packages/imessage-agent/`**.
+**The Solution:** We are building an **Autonomous Background Brain & Reflection Engine**. It ingests chaotic digital fragments, auto-categorizes them into a beautiful "Bento Box" dashboard, analyzes behavioral habits, and *proactively* pings you via iMessage when you physically arrive near a place you previously saved.
 
 ---
 
-## 2. Vision and product direction
+## 2. Core Features (The Product Streamline)
 
-### 2.1 Problem (wedge)
+### Feature 1: Omni-Channel Ingestion (The Funnel)
+* **Action:** Users feed the brain via chat exports (WhatsApp/WeChat `.txt`), pasted links, or image uploads (screenshots of IG/Rednote).
+* **Native Magic:** macOS users run the Photon iMessage SDK to watch specific group chats and ingest context in real-time.
 
-Generic summaries (OS, email) fail for **messy, multi-platform** coordination: long group chats, links, screenshots, and half-formed plans **disappear** from working memory.
+### Feature 2: AI Auto-Categorization (The Brain)
+* **Action:** The backend sends raw text and screenshots to the MiniMax Text/Vision APIs.
+* **Extraction:** MiniMax is strictly prompted to extract the location, summarize the vibe, and assign a category tag (🍔 Food/Boba, 🎫 Events, ⚽ Sports, 💡 Ideas, 🏥 Medical).
 
-### 2.2 Solution (positioning)
+### Feature 3: The Reflection Dashboard (The "Cute" UI)
+* **Vibe:** A React-based, highly visual "Bento Box" UI (rounded corners, pastel tags, masonry grid).
+* **Analytics:** Recharts/Chart.js visualizes the user's "Digital Diet" (e.g., "45% of your saved items this month are Food-related").
+* **Knowledge Board:** A filterable grid of all extracted memories, linking back to the original chat source.
 
-**Deep-Context Social Copilot:** combines **personalized context** with **actionable, retrievable memory** — catch-up, recall, next steps, export.
+### Feature 4: Proactive Location Pings (The Flex)
+* **Action:** The web app tracks location. The user sets a "Notification Frequency" in the UI (e.g., "Ping me once a day" or "Ping me when I'm within 5 miles").
+* **Execution:** When the user arrives in a new city, the Node backend triggers the Photon agent to send a native iMessage: *"📍 Welcome! Based on your saved reels from last month, here are 3 spots you wanted to check out..."*
 
-### 2.3 Idea evolution (context for agents)
-
-| Stage | Idea | Critique |
-|-------|------|----------|
-| v1 | Decision Maker — persona/values | Crowded; generic “persona bot” risk |
-| v2 | Recall — second brain for chats | Crowded vs OS summaries |
-| **Target** | **Deep-Context Social Copilot** | Wins if **grounding**, **next steps**, **honest data paths** are obvious |
-
----
-
-## 3. Core user stories
-
-### 3.1 “Catch me up”
-
-User returns to a noisy thread; agent summarizes **what they missed**, **next steps for them**, with **sources** (excerpts, uploads, or **labeled demo fixtures** — never fake “official API” claims).
-
-### 3.2 “Cross-platform recall”
-
-User asks e.g. *“What was that place in LA?”* — agent retrieves from **ingested memory** with **citations**. MVP inputs: **paste, export, upload, local Mac paths** — not imaginary TikTok/iMessage OAuth.
-
-### 3.3 “Export and execute”
-
-Structured output (tasks, decisions, owners where known) → **Notion** (in codebase) and/or copy-friendly formats.
+### Feature 5: The "Mirror Memory" Chatbot (RAG + Persona)
+* **Action:** Users can query their saved database using natural language either through a React chat widget on the dashboard or natively via the Photon iMessage agent.
+* **Retrieval (RAG):** The backend searches Supabase for relevant memories based on the user's question (e.g., "What LA cafes did we save?").
+* **Persona Injection:** The MiniMax prompt is dynamically injected with the user's "Tone Profile." The AI does not answer like a generic assistant; it acts as the user's digital clone, delivering the retrieved memories using the user's exact slang, humor, and personal context.
 
 ---
 
-## 4. Technical stack and constraints
+## 3. Technical Stack & MVC Architecture
 
-### 4.1 Stack (target vs repo)
+### 3.1 Stack
 
 | Layer | Choice |
-|--------|--------|
-| IDE / story | **TRAE** |
-| Runtime LLM | **MiniMax** (required by event; verify **PROGRESS** for current provider) |
-| Messaging bonus | **Photon** — **`packages/imessage-agent/`**, macOS |
-| Frontend | **React + Vite + Tailwind** — **`web/`** |
-| HTTP API | **Node + Express** — **`api/`** |
-| Database | **Supabase (Postgres)** — schema in **`supabase/migrations/`** |
+|-------|--------|
+| IDE / story | **TRAE** (`@Chat` for planning, `@Builder` for execution) |
+| AI Engine | **MiniMax** (Text API for extraction/summarization, Vision API for screenshots) |
+| Native Interface | **Photon** iMessage Kit — **`packages/imessage-agent/`**, macOS |
+| Frontend (View) | **React + Vite + Tailwind CSS** — **`web/`** (Bento Box styling, Recharts) |
+| Backend (Controller) | **Node.js + Express** — **`api/`** (orchestrates MiniMax calls and Photon webhooks) |
+| Database (Model) | **Supabase (PostgreSQL)** — schema in **`supabase/migrations/`** |
 
-### 4.2 Data ingestion (honest MVP)
+### 3.2 MVC Enforcement for AI Agents
 
-1. **Photon** — live watch / send / recent messages on Mac (+ permissions as required).  
-2. **Optional `chat.db`** — only if explicitly built; fragile; document in **PROGRESS**.  
-3. **User export / paste / upload** — preferred for reproducible demos.  
-4. **Staged fixtures** — OK if **disclosed** in UI and pitch.
+* Keep route handlers in `api/routes/` thin. All MiniMax and Photon logic must live in **`api/services/`**.
+* Frontend components must remain purely presentational, fetching data from the Express backend, never calling MiniMax directly.
+* Add domain logic in **`api/services/`** first; routes validate and delegate.
 
-**Unacceptable claims:** “We read all your WhatsApp/WeChat/iMessage via official consumer APIs” when those do not exist for this use case.
+### 3.3 Deployment (Vercel)
 
-### 4.3 Platform reality (short)
+* **Frontend:** Vite build output → repo root **`dist/`** (see **`web/vite.config.ts`**).
+* **API:** **`api/index.ts`** as serverless handler; **`vercel.json`** rewrites **`/api/*`** → that function and **`/*`** → **`index.html`**.
+* **`packages/imessage-agent/`** is **not** part of the Vercel deployment (see **`.vercelignore`**).
+* **Secrets:** set in Vercel Project → Environment Variables. **Never commit secrets.**
 
-- **iMessage:** no general third-party bulk-history API; **Photon** (and optional local tooling) are the real paths.  
-- **WhatsApp / WeChat:** consumer history APIs are not available like a normal SaaS integration — exports / paste / extensions with consent, scoped to time.  
-- **TikTok Data Portability:** approval-heavy; **not** hackathon-critical path.
+### 3.4 Demo Integrity
 
-### 4.4 Deployment (Vercel)
-
-- **Frontend:** Vite build output → repo root **`dist/`** (see **`web/vite.config.ts`**).  
-- **API:** **`api/index.ts`** as serverless handler; **`vercel.json`** rewrites **`/api/*`** → that function and **`/*`** → **`index.html`**.  
-- **`packages/imessage-agent/`** is **not** part of the Vercel deployment (see **`.vercelignore`**).  
-- **Secrets:** set in Vercel Project → Environment Variables (e.g. `OPENAI_API_KEY` today; MiniMax keys when added). **Never commit secrets.**
+Ideal UX is "connect everything in one click." **Build** either a **real** path (Photon, exports, optional local ingest) or a **transparent** simulated onboarding — never silent fake enterprise integrations. Staged fixtures are OK if **disclosed** in UI and pitch.
 
 ---
 
-## 5. Repository layout (monorepo)
+## 4. The Data Contract (LLM JSON Schema)
+
+To ensure the AI doesn't break the database, **MiniMax must output strictly in this JSON format** during the ingestion phase:
+
+```json
+{
+  "summary": "Short 2-sentence summary of the chat/image.",
+  "category": "Food | Events | Sports | Ideas | Medical",
+  "location": {
+    "city": "string or null",
+    "specific_name": "string or null"
+  },
+  "action_items": [
+    { "task": "string", "owner": "string" }
+  ],
+  "source_context": "The original text snippet or image description."
+}
+```
+
+---
+
+## 5. Repository Layout (Monorepo)
 
 ```
 second-brain-recall/
@@ -129,30 +121,34 @@ second-brain-recall/
 **MVC mapping**
 
 | Layer | Path |
-|--------|------|
+|-------|------|
 | View | `web/src/`, `web/public/` |
 | Controller | `api/routes/`, `api/app.ts` |
 | Model | `supabase/migrations/`, `api/lib/supabase.ts` |
 | Services | `api/services/` |
 | Messaging | `packages/imessage-agent/` |
 
-**Rule:** add domain logic in **`api/services/`** first; routes validate and delegate.
+---
+
+## 6. Execution Rules for AI Agents
+
+1. Read **`docs/PROGRESS.md` first** — do not assume MiniMax, RAG, or `chat.db` exist until checked there.
+2. **Before writing code:** read this file and **`docs/PROGRESS.md`** (live state, blockers, next task).
+3. **After a merge-worthy milestone:** update **`docs/PROGRESS.md`** (done / in progress / blocked).
+4. Keep route handlers thin; services own orchestration.
+5. Prefer **structured LLM outputs** when extracting facts for storage.
+6. **No secrets in Git** — env only; rotate leaked keys before public repo.
+7. Prefer **small, shippable steps** over features that depend on non-existent consumer APIs.
 
 ---
 
-## 6. Execution rules for AI agents
+## 7. Future Extensions (from original GOAL.md)
 
-1. Read **`docs/PROGRESS.md` first** — do not assume MiniMax, RAG, or `chat.db` exist until checked there.  
-2. Keep route handlers thin; services own orchestration.  
-3. Prefer **structured LLM outputs** when extracting facts for storage.  
-4. Update **PROGRESS.md** after meaningful changes.  
-5. **No secrets in Git** — env only; rotate leaked keys before public repo.
+These are validated ideas parked for post-MVP iteration:
 
----
-
-## 7. UX north star vs honesty
-
-Ideal UX is “connect everything in one click.” **Build** either a **real** path (Photon, exports, optional local ingest) or a **transparent** simulated onboarding — never silent fake enterprise integrations.
+* **"Catch me up"** — user returns to a noisy thread; agent summarizes what they missed + next steps, with source citations.
+* **"Export and execute"** — structured output (tasks, decisions, owners) → Notion and/or copy-friendly formats.
+* **Source citations** — `sources[]` array in extraction output linking back to original message excerpts.
 
 ---
 
