@@ -1,16 +1,22 @@
 {
-  "name": "trae-project",
+  "name": "second-brain-recall",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": ["packages/*"],
   "scripts": {
-    "client:dev": "vite",
-    "build": "tsc -b && vite build",
+    "client:dev": "vite --config web/vite.config.ts",
+    "build": "tsc -b && vite build --config web/vite.config.ts",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --config web/vite.config.ts",
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
-    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\""
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "agent:start": "npm run start -w imessage-agent",
+    "agent:dev": "npm run dev -w imessage-agent",
+    "agent:test:imessage": "npm run test:imessage -w imessage-agent",
+    "agent:test:send": "npm run test:send -w imessage-agent",
+    "agent:test:watch": "npm run test:watch -w imessage-agent"
   },
   "dependencies": {
     "@notionhq/client": "^5.14.0",
